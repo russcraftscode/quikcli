@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""
-Filename: quikcli.py
-Author: Russell Johnson
-Created: November 22, 2025
-Description:
-    This library handles prompting the user for responses and ensuring those responses are properly formated.
-    Pronounced "quickly".
-"""
+# Filename: quikcli.py
+# Author: Russell Johnson
+# Created: November 22, 2025
+# Version: 2.0
+"""Quikcli – a tiny console‑prompting helper.
 
+This module handles prompting the user for responses and ensuring those responses are properly formatted.
+Pronounced "quickly".
+"""
 import os
 import enum
 
@@ -15,17 +15,25 @@ import enum
 # Constants
 # ------------
 
-DEFAULT_SCREEN_WIDTH = 80
-DEFAULT_MAX_LINES = 30
-DEFAULT_H_BORDER = '-'  # Horizontal border
-DEFAULT_V_BORDER = '|'  # Vertical border
+# Default visual layout parameters
+DEFAULT_SCREEN_WIDTH: int = 80  # default width of the prompt box (columns)
+DEFAULT_MAX_LINES: int = 30  # max number of rows before a paging is required TODO
+DEFAULT_H_BORDER: str = '-'  # character used for top/bottom borders
+DEFAULT_V_BORDER: str = '|'  # character used for left/right borders
 
 
 class Input_Formats(enum.Enum):
-    yn = "y/n"
-    numeric = "numeric"
-    integer = "int"
+    """Supported input validation modes for :meth:`QuikCLI.prompt_user`.
 
+    YN: Accepts only 'yes' or 'no'. Returns True / False
+
+    INTEGER: Accepts a string consisting only of decimal digits. Returns int
+
+    NUMERIC: TODO
+    """
+    YN = 1
+    INTEGER = 2
+    NUMERIC = 3
 
 # ------------
 # Static Functions
@@ -75,7 +83,7 @@ def line_split(text: str, max_length: int) -> list[str]:
     return lines
 
 
-class quikcli:
+class Quikcli:
     def __init__(self,
                  max_width: int = DEFAULT_SCREEN_WIDTH,
                  max_lines: int = DEFAULT_MAX_LINES,
@@ -138,10 +146,10 @@ class quikcli:
             print(f"| {line:<{max_len}} |")
             lines_used += 1
 
-        # print the options if there are any
+        # Print the options if there are any
         if options:
             print(internal_divider)
-            max_len -= 4  # cut the length of the display by 4 to allow for option numbering
+            max_len -= 4  # Cut the length of the display by 4 to allow for option numbering
             for i, option in enumerate(options):
                 chunks = [option[i:i + max_len] for i in range(0, len(option), max_len)]
                 # print the 1st line of the option
@@ -164,26 +172,25 @@ class quikcli:
                     instructions=None):
         """
         Prompts the user for input. Chooses the appropriate display type for the question
-        :param query:  to ask the user
-        :param menu_options: list of options that the user may pick from (optional)
-        :param input_format: optional constraint on user response ["y/n", "numeric", "int"]
-        :param input_length: optional constraint requiring user to respond with that many characters
-        :param row_limit: row length of the display. Defaults to 60 chars
+        :param query: Question to ask the user
+        :param menu_options: List of options that the user may pick from (optional)
+        :param input_format: Optional constraint on user response ["y/n", "numeric", "int"]
+        :param input_length: Optional constraint requiring user to respond with that many characters
+        :param screen_width: Character width length of the display. Defaults to 80 chars
         :param header: optional line to display above the question
         :param required: is the user required to give an answer. Defaults to true
         :return: the response of the user. Type will be determined by 'format' parameter. Defaults to string
         """
         # TODO: add pg-up pg-dn for long displays
-        question_answered = False
         error_message = None
 
-        if required is None:  # if not specified, go with default
+        if required is None:  # If not specified, go with default
             response_required = self.default_required
         else:
             response_required = required
 
-        while not question_answered:
-            clear_screen(warn = self.warn_screen_clear)
+        while True:
+            clear_screen(warn=self.warn_screen_clear)
             print(self.app_header)  # may be blank
 
             # show question
@@ -192,42 +199,45 @@ class quikcli:
                                  max_width=self.max_screen_width if screen_width is None else screen_width,
                                  header=header,
                                  )
-            # If the user has previously entered mis-formed response, show the error message above instructions
+
+            # If the user has previously entered mis-formed response, show the error message
             if error_message:
                 print(error_message)
 
             # Get user response
             if instructions:  # if instructions are specified
                 response = input(instructions)
+
             elif menu_options:
                 if response_required:
                     response = input("Enter your selection number: ")
                 else:
                     response = input("Enter your selection number [enter nothing to skip]: ")
-            elif input_format == Input_Formats.yn:
-                response = input("Enter <yes/no>: ")
+
+            elif input_format == Input_Formats.YN:
                 if response_required:
                     response = input("Enter <yes/no>: ")
                 else:
                     response = input("Enter <yes/no/leave blank>: ")
-            elif input_format == Input_Formats.integer:
-                response = input("Enter digits only, no commas or symbols: ")
+
+            elif input_format == Input_Formats.INTEGER:  # Enforce 0-9 only
                 if response_required:
                     response = input("Enter digits only, no commas or symbols: ")
                 else:
                     response = input("Enter digits only, no commas or symbols [enter nothing to skip]: ")
-            else:  # free form response
+
+            else:  # Free form response
                 if response_required:
                     response = input(": ")
                 else:
                     response = input("[enter nothing to skip]: ")
 
-            # strip any trailing or leading whitespace from response
+            # Strip any trailing or leading whitespace from response
             response = response.strip()
 
-            # validate response
-            if input_format == Input_Formats.yn:
-                if len(response) > 0:  # some answer was given
+            # Validate response
+            if input_format == Input_Formats.YN:
+                if len(response) > 0:  # Some answer was given
                     if response[0].lower() == 'y': return True
                     if response[0].lower() == 'n': return False
                     error_message = "Invalid Input: Response must start with 'y' or 'n'"
@@ -235,91 +245,23 @@ class quikcli:
                     error_message = "Invalid Input: Question cannot be skipped"
                 else:  # no answer given and not required
                     return None
-            elif input_format == Input_Formats.integer:
-                if len(response) > 0:  # some answer was given
+
+            elif input_format == Input_Formats.INTEGER:
+                if len(response) > 0:  # Some answer was given
                     if response.isdecimal():
                         return int(response)
                     else:
                         error_message = "Invalid Input: Response must contain only digits 0-9"
-                elif response_required:  # no answer given and answer is required
+                elif response_required:  # No answer given and answer IS required
                     error_message = "Invalid Input: Question cannot be skipped"
-                else:  # no answer given and not required
+                else:  # No answer given and NOT required
                     return None
-            else:  # free form response
+
+            else:  # Free form response
                 if response_required and len(response) == 0:
                     error_message = "Invalid Input: Question cannot be skipped"
                 else:
                     return response
-
-
-"""
-# Repeat question loop until user responds appropriately
-while True:
-    # Prompt the user with the correct display type
-    if user_options:  # if there is a limited list of responses, display a menu
-        display_menu(query, options=user_options, row_max=row_limit, header=header)
-    else:
-        if input_format == "y/n":  # if asking a true false question
-            display_yes_no(query, row_max=row_limit, header=header)
-        else:  # asking a free-form question
-            display_text_input(query, row_max=row_limit, header=header)
-
-    # Check response acceptability & strip out any lead/trailing whitespace
-    user_response = input().strip()
-    # Non-required questions may be blank
-    if not required and user_response == "":
-        return NA
-    # required questions cannot be blank
-    if user_response == "":
-        clear_screen()
-        print("This is a required question.")
-        continue
-    # if response is not the proper length
-    if len(user_response) != input_length and input_length:
-        print(f"Response must be {input_length} characters long.")
-        continue
-    # int format questions must be answered with a integer with no symbols
-    if input_format == "int":
-        if user_response.isdigit():
-            # Return the properly formatted response
-            return user_response
-        else:
-            clear_screen()
-            print("Please respond with digits only. No letters, commas, or other symbols.")
-            continue
-    # int format questions must be answered with just numbers
-    if input_format == "numeric":
-        if user_response.isdigit():
-            # Return the properly formatted response
-            return user_response
-        else:
-            clear_screen()
-            print("Please respond with digits only. No dashes, commas, or other symbols.")
-            continue
-    # Yes/No questions must have a response that either starts with a 'y' or a 'n'. Case does not matter
-    if input_format == "y/n":
-        if len(user_response) > 0:  # check to make sure the user input at least one character
-            if user_response[0].lower() == 'y':
-                return 't'
-            elif user_response[0].lower() == 'n':
-                return 'f'
-            else:
-                clear_screen()
-                print("Please respond with \"yes\" or \"no\" only. No other letters")
-                continue
-    # Menu questions must have a response that matches an available option
-    if user_options:
-        if user_response.isdigit():
-            sel_number = int(user_response)
-            if sel_number > 0 and sel_number <= len(user_options):
-                #return sel_number
-                return user_options[sel_number - 1]
-        clear_screen()
-        print("Please enter only the number of your selection with no other input")
-        continue
-    # Any remaining questions are free-form response, so just return the input
-    return user_response
-"""
 
 
 def main():
@@ -330,7 +272,7 @@ def main():
 
     test_app_header = " *** Running in dev mode ***"
 
-    test_prompter = quikcli(app_header=test_app_header, warn_screen_clear=False)
+    test_prompter = Quikcli(app_header=test_app_header, warn_screen_clear=False)
 
     test_header1 = "This is question 1"
     test_header2 = "This is question 2"
@@ -348,14 +290,8 @@ def main():
 
     test_prompter.prompt_user(test_question, menu_options=test_options, header=test_header1)
     test_prompter.prompt_user(test_question, header=test_header2)
-    test_prompter.prompt_user(test_question, input_format=Input_Formats.yn, header=test_header3)
-    test_prompter.prompt_user(test_question, input_format=Input_Formats.integer, header=test_header4)
-
-    #test_prompter.prompt_user(test_question, menu_options=test_options, header=test_header, required=False)
-    #test_prompter.prompt_user(test_question, menu_options=test_options, required=False, row_limit=40)
-    #test_prompter.prompt_user(test_question, required=False)
-    #test_prompter.prompt_user(test_question, input_format="y/n", required=False)
-    #test_prompter.prompt_user(test_question, header="Required question")
+    test_prompter.prompt_user(test_question, input_format=Input_Formats.YN, header=test_header3)
+    test_prompter.prompt_user(test_question, input_format=Input_Formats.INTEGER, header=test_header4)
 
 
 if __name__ == "__main__":
